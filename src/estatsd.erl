@@ -62,8 +62,9 @@
         ]).
 
 -record(state, {
-          prefix     :: iodata(),
           socket     :: inet:socket(),
+          prefix     :: iodata(),
+          tags       :: list(),
           batch_size :: pos_integer()
          }).
 
@@ -165,8 +166,7 @@ histogram(Metric, Value, Rate, Tags) when is_number(Value) ->
 submit(Type, Metric, Value, SampleRate, Tags) when SampleRate =< 1 ->
     case SampleRate =:= 1 orelse rand:uniform(100) > erlang:trunc(SampleRate * 100) of
         true ->
-            Packet = estatsd_protocol:encode(Type, Metric, Value, SampleRate, Tags),
-            gen_server:cast(?MODULE, {submit, Packet});
+            gen_server:cast(?MODULE, {submit, {Type, Metric, Value, SampleRate, Tags}});
         false ->
             ok
     end;
@@ -178,16 +178,18 @@ submit(_, _, _, SampleRate, _) ->
 %%--------------------------------------------------------------------
 
 init(Opts) ->
-    Prefix = proplists:get_value(prefix, Opts, ?DEFAULT_PREFIX),
     Hostname = proplists:get_value(hostname, Opts, ?DEFAULT_HOSTNAME),
     Port = proplists:get_value(port, Opts, ?DEFAULT_PORT),
+    Prefix = proplists:get_value(prefix, Opts, ?DEFAULT_PREFIX),
+    Tags = proplists:get_value(tags, Opts, ?DEFAULT_TAGS),
     BatchSize = proplists:get_value(batch_size, Opts, ?DEFAULT_BATCH_SIZE),
 
     case gen_udp:open(0, [{active, false}]) of
         {ok, Socket} ->
             gen_udp:connect(Socket, Hostname, Port),
-            {ok, #state{prefix = prefix(Prefix),
-                        socket = Socket,
+            {ok, #state{socket = Socket,
+                        prefix = prefix(Prefix),
+                        tags = Tags,
                         batch_size = BatchSize}};
         {error, Reason} ->
             {stop, Reason}
@@ -196,11 +198,21 @@ init(Opts) ->
 handle_call(_Req, _From, State) ->
     {reply, ignored, State}.
 
-handle_cast({submit, Packet}, #state{prefix     = Prefix,
-                                     socket     = Socket,
-                                     batch_size = BatchSize} = State) ->
-    Packets = drain_submits(BatchSize, Prefix),
-    gen_udp:send(Socket, [Prefix, Packet, "\n" | Packets]),
+handle_cast({submit, Submission}, #state{socket     = Socket,
+                                         prefix     = Prefix,
+                                         tags       = ConstantTags,
+                                         batch_size = BatchSize} = State) ->
+    More = drain_submissions(BatchSize),
+    Packets = lists:foldr(fun({Type, Metric, Value, SampleRate, Tags}, Acc) ->
+                              Packet = estatsd_protocol:encode(Type, Metric, Value, SampleRate, Tags ++ ConstantTags),
+                              case Acc of
+                                  [] ->
+                                      [Prefix, Packet];
+                                  _ ->
+                                      [Prefix, Packet | Acc]
+                              end
+                          end, [], [Submission | More]),
+    gen_udp:send(Socket, Packets),
     {ok, State};
 
 handle_cast(_Msg, State) ->
@@ -250,15 +262,15 @@ name() ->
 sname() ->
     string:sub_word(atom_to_list(node()), 1, $@).
 
-drain_submits(Cnt, Prefix) ->
-    drain_submits(Cnt, Prefix, []).
+drain_submissions(Cnt) ->
+    drain_submissions(Cnt, []).
 
-drain_submits(0, _, Acc) ->
-    Acc;
-drain_submits(Cnt, Prefix, Acc) ->
+drain_submissions(0, Acc) ->
+    lists:reverse(Acc);
+drain_submissions(Cnt, Acc) ->
     receive
-        {'$gen_cast', {submit, Packet}} ->
-            drain_submits(Cnt - 1, Prefix, [Prefix, Packet, "\n" | Acc])
+        {'$gen_cast', {submit, Submission}} ->
+            drain_submissions(Cnt - 1, [Submission | Acc])
     after 0 ->
         Acc
     end.
