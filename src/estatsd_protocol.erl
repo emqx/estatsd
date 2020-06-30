@@ -1,3 +1,19 @@
+%%--------------------------------------------------------------------
+%% Copyright (c) 2020 EMQ Technologies Co., Ltd. All Rights Reserved.
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%%     http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+%%--------------------------------------------------------------------
+
 -module(estatsd_protocol).
 
 -include("estatsd.hrl").
@@ -12,11 +28,14 @@
 %%--------------------------------------------------------------------
 
 encode(Type, Key, Value, SampleRate, Tags) ->
-    [Key, <<":">>, encode_value(Type, Value), <<"|">>, encode_type(Type), encode_sample_rate(SampleRate), encode_tags(Tags)].
+    [encode_key(Key), <<":">>, encode_value(Type, Value), <<"|">>, encode_type(Type), encode_sample_rate(SampleRate), encode_tags(Tags)].
 
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
+
+encode_key(Key) ->
+    to_string(Key).
 
 encode_value(Type, Value) when Type =:= gauge_delta andalso Value >= 0 ->
     [<<"+">>, encode_value(Value)];
@@ -37,24 +56,32 @@ encode_type(gauge) ->
 encode_type(gauge_delta) ->
     <<"g">>;
 encode_type(timing) ->
-    <<"t">>;
+    <<"ms">>;
+encode_type(histogram) ->
+    <<"h">>;
 encode_type(set) ->
     <<"s">>;
 encode_type(Type) ->
     error({bad_type, Type}).
 
-encode_sample_rate(SampleRate) when SampleRate >= 1 ->
-    <<>>;
+encode_sample_rate(SampleRate) when SampleRate > 1 ->
+    error({bad_sample_rate, SampleRate});
+encode_sample_rate(SampleRate) when SampleRate == 1 ->
+    [];
 encode_sample_rate(SampleRate) ->
     [<<"|@">>, float_to_list(SampleRate, [compact, {decimals, 6}])].
 
 encode_tags(Tags) ->
-    encode_tags(Tags, []).
+    encode_tags(lists:reverse(Tags), []).
 
+encode_tags([], []) ->
+    [];
 encode_tags([], Acc) ->
-    Acc;
+    [<<"|#">> | Acc];
+encode_tags([{Key, Value} | More], []) ->
+    encode_tags(More, [to_string(Key), <<":">>, to_string(Value)]);
 encode_tags([{Key, Value} | More], Acc) ->
-    encode_tags(More, [[to_string(Key), to_string(Value)] | Acc]).
+    encode_tags(More, [to_string(Key), <<":">>, to_string(Value), <<",">> | Acc]).
 
 to_string(Atom) when is_atom(Atom) ->
     atom_to_binary(Atom, utf8);

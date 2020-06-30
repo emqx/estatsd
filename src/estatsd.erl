@@ -1,9 +1,25 @@
+%%--------------------------------------------------------------------
+%% Copyright (c) 2020 EMQ Technologies Co., Ltd. All Rights Reserved.
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%%     http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+%%--------------------------------------------------------------------
+
 -module(estatsd).
 
 -include("estatsd.hrl").
 
-% -compile(inline).
-% -compile({inline_size, 512}).
+-compile(inline).
+-compile({inline_size, 150}).
 
 -behaviour(gen_server).
 
@@ -11,20 +27,30 @@
         , stop/0
         ]).
 
--export([ counter/3
+-export([ counter/2
+        , counter/3
         , counter/4
+        , increment/2
         , increment/3
         , increment/4
+        , decrement/2
         , decrement/3
         , decrement/4
+        , gauge/2
         , gauge/3
         , gauge/4
+        , gauge_delta/2
         , gauge_delta/3
         , gauge_delta/4
+        , set/2
         , set/3
         , set/4
+        , timing/2
         , timing/3
         , timing/4
+        , histogram/2
+        , histogram/3
+        , histogram/4
         ]).
 
 -export([ init/1
@@ -36,10 +62,10 @@
         ]).
 
 -record(state, {
-    prefix     :: iodata(),
-    socket     :: inet:socket(),
-    batch_size :: pos_integer()
-}).
+          prefix     :: iodata(),
+          socket     :: inet:socket(),
+          batch_size :: pos_integer()
+         }).
 
 %%--------------------------------------------------------------------
 %% APIs
@@ -53,59 +79,93 @@ start_link(Opts) ->
 stop() ->
     gen_server:stop(?MODULE).
 
+counter(Metric, Value) ->
+    counter(Metric, Value, 1, []).
+
 -spec counter(key(), value(), sample_rate()) -> ok.
-counter(Key, Value, Rate) ->
-    counter(Key, Value, Rate, []).
+counter(Metric, Value, Rate) ->
+    counter(Metric, Value, Rate, []).
 
 -spec counter(key(), value(), sample_rate(), tags()) -> ok.
-counter(Key, Value, Rate, Tags) ->
-    submit(counter, Key, Value, Rate, Tags).
+counter(Metric, Value, Rate, Tags) when is_integer(Value) ->
+    submit(counter, Metric, Value, Rate, Tags).
+
+increment(Metric, Value) ->
+    increment(Metric, Value, 1, []).
 
 -spec increment(key(), value(), sample_rate()) -> ok.
-increment(Key, Value, Rate) ->
-    increment(Key, Value, Rate, []).
+increment(Metric, Value, Rate) ->
+    increment(Metric, Value, Rate, []).
 
-increment(Key, Value, Rate, Tags) ->
-    submit(counter, Key, Value, Rate, Tags).
+increment(Metric, Value, Rate, Tags) when is_integer(Value) ->
+    submit(counter, Metric, Value, Rate, Tags).
+
+decrement(Metric, Value) ->
+    decrement(Metric, Value, 1, []).
 
 -spec decrement(key(), value(), sample_rate()) -> ok.
-decrement(Key, Value, Rate) ->
-    decrement(Key, Value, Rate, []).
+decrement(Metric, Value, Rate) ->
+    decrement(Metric, Value, Rate, []).
 
-decrement(Key, Value, Rate, Tags) ->
-    submit(counter, Key, -Value, Rate, Tags).
+decrement(Metric, Value, Rate, Tags) when is_integer(Value) ->
+    submit(counter, Metric, -Value, Rate, Tags).
+
+gauge(Metric, Value) ->
+    gauge(Metric, Value, 1, []).
 
 -spec gauge(key(), value(), sample_rate()) -> ok.
-gauge(Key, Value, Rate) ->
-    gauge(Key, Value, Rate, []).
+gauge(Metric, Value, Rate) ->
+    gauge(Metric, Value, Rate, []).
 
-gauge(Key, Value, Rate, Tags) when Value >= 0 ->
-    submit(gauge, Key, Value, Rate, Tags).
+gauge(Metric, Value, Rate, Tags) when is_number(Value) andalso Value >= 0 ->
+    submit(gauge, Metric, Value, Rate, Tags).
+
+gauge_delta(Metric, Value) ->
+    gauge_delta(Metric, Value, 1, []).
 
 -spec gauge_delta(key(), value(), sample_rate()) -> ok.
-gauge_delta(Key, Value, Rate) ->
-    gauge_delta(Key, Value, Rate, []).
+gauge_delta(Metric, Value, Rate) ->
+    gauge_delta(Metric, Value, Rate, []).
 
-gauge_delta(Key, Value, Rate, Tags) ->
-    submit(gauge_delta, Key, Value, Rate, Tags).
+gauge_delta(Metric, Value, Rate, Tags) when is_number(Value) ->
+    submit(gauge_delta, Metric, Value, Rate, Tags).
 
-set(Key, Value, Rate) ->
-    set(Key, Value, Rate, []).
+set(Metric, Value) ->
+    set(Metric, Value, 1, []).
 
-set(Key, Value, Rate, Tags) ->
-    submit(set, Key, Value, Rate, Tags).
+set(Metric, Value, Rate) ->
+    set(Metric, Value, Rate, []).
 
--spec timing(key(), value(), sample_rate()) -> ok.
-timing(Key, Value, Rate) ->
-    timing(Key, Value, Rate, []).
+set(Metric, Value, Rate, Tags) when is_number(Value) ->
+    submit(set, Metric, Value, Rate, Tags).
 
-timing(Key, Value, Rate, Tags) ->
-    submit(timing, Key, Value, Rate, Tags).
+timing(Metric, ValueOrFunc) ->
+    timing(Metric, ValueOrFunc, 1, []).
 
-submit(Type, Key, Value, SampleRate, Tags) when SampleRate =< 1 ->
+timing(Metric, ValueOrFunc, Rate) ->
+    timing(Metric, ValueOrFunc, Rate, []).
+
+timing(Metric, Func, Rate, Tags) when is_function(Func) ->
+    Start = erlang:system_time(millisecond),
+    Func(),
+    timing(Metric, erlang:system_time(millisecond) - Start, Rate, Tags);
+
+timing(Metric, Value, Rate, Tags) when is_number(Value) ->
+    submit(timing, Metric, Value, Rate, Tags).
+
+histogram(Metric, Value) ->
+    histogram(Metric, Value, 1, []).
+
+histogram(Metric, Value, Rate) ->
+    histogram(Metric, Value, Rate, []).
+
+histogram(Metric, Value, Rate, Tags) when is_number(Value) ->
+    submit(histogram, Metric, Value, Rate, Tags).
+
+submit(Type, Metric, Value, SampleRate, Tags) when SampleRate =< 1 ->
     case SampleRate =:= 1 orelse rand:uniform(100) > erlang:trunc(SampleRate * 100) of
         true ->
-            Packet = estatsd_protocol:encode(Type, Key, Value, SampleRate, Tags),
+            Packet = estatsd_protocol:encode(Type, Metric, Value, SampleRate, Tags),
             gen_server:cast(?MODULE, {submit, Packet});
         false ->
             ok
@@ -117,7 +177,6 @@ submit(_, _, _, SampleRate, _) ->
 %% gen_server callbacks
 %%--------------------------------------------------------------------
 
-% -spec init(term()) -> {ok, term()} | {stop, atom()}.
 init(Opts) ->
     Prefix = proplists:get_value(prefix, Opts, ?DEFAULT_PREFIX),
     Hostname = proplists:get_value(hostname, Opts, ?DEFAULT_HOSTNAME),
@@ -169,14 +228,14 @@ prefix(sname) ->
     [sname(), $.];
 prefix(undefined) ->
     "";
-prefix(Key) when is_binary(Key) ->
-    [Key, $.];
+prefix(Metric) when is_binary(Metric) ->
+    [Metric, $.];
 prefix([]) ->
     [];
-prefix([H | T] = Key) ->
-    case io_lib:printable_unicode_list(Key) of
+prefix([H | T] = Metric) ->
+    case io_lib:printable_unicode_list(Metric) of
         true ->
-            [Key, $.];
+            [Metric, $.];
         false ->
             [prefix(H) | prefix(T)]
     end.
