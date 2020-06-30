@@ -85,8 +85,6 @@ encode_tags([{Key, Value} | More], Acc) ->
 
 to_string(Atom) when is_atom(Atom) ->
     atom_to_binary(Atom, utf8);
-to_string(Integer) when is_integer(Integer) ->
-    integer_to_binary(Integer);
 to_string(List) when is_list(List) ->
     List;
 to_string(Binary) when is_binary(Binary) ->

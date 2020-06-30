@@ -18,12 +18,18 @@
 
 -include("estatsd.hrl").
 
+-ifdef(TEST).
+-compile(export_all).
+-compile(nowarn_export_all).
+-endif.
+
 -compile(inline).
 -compile({inline_size, 150}).
 
 -behaviour(gen_server).
 
--export([ start_link/1
+-export([ start_link/0
+        , start_link/1
         , stop/0
         ]).
 
@@ -72,7 +78,9 @@
 %% APIs
 %%--------------------------------------------------------------------
 
-% -spec start_link(atom(), options()) -> {ok, pid()}.
+start_link() ->
+    start_link([]).
+
 start_link(Opts) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [Opts], []).
 
@@ -164,7 +172,7 @@ histogram(Metric, Value, Rate, Tags) when is_number(Value) ->
     submit(histogram, Metric, Value, Rate, Tags).
 
 submit(Type, Metric, Value, SampleRate, Tags) when SampleRate =< 1 ->
-    case SampleRate =:= 1 orelse rand:uniform(100) > erlang:trunc(SampleRate * 100) of
+    case SampleRate =:= 1 orelse rand:uniform(100) =< erlang:trunc(SampleRate * 100) of
         true ->
             gen_server:cast(?MODULE, {submit, {Type, Metric, Value, SampleRate, Tags}});
         false ->
@@ -177,7 +185,7 @@ submit(_, _, _, SampleRate, _) ->
 %% gen_server callbacks
 %%--------------------------------------------------------------------
 
-init(Opts) ->
+init([Opts]) ->
     Hostname = proplists:get_value(hostname, Opts, ?DEFAULT_HOSTNAME),
     Port = proplists:get_value(port, Opts, ?DEFAULT_PORT),
     Prefix = proplists:get_value(prefix, Opts, ?DEFAULT_PREFIX),
@@ -202,18 +210,18 @@ handle_cast({submit, Submission}, #state{socket     = Socket,
                                          prefix     = Prefix,
                                          tags       = ConstantTags,
                                          batch_size = BatchSize} = State) ->
-    More = drain_submissions(BatchSize),
+    Submissions = drain_submissions(BatchSize - 1, [Submission]),
     Packets = lists:foldr(fun({Type, Metric, Value, SampleRate, Tags}, Acc) ->
                               Packet = estatsd_protocol:encode(Type, Metric, Value, SampleRate, Tags ++ ConstantTags),
                               case Acc of
                                   [] ->
                                       [Prefix, Packet];
                                   _ ->
-                                      [Prefix, Packet | Acc]
+                                      [Prefix, Packet, "\n" | Acc]
                               end
-                          end, [], [Submission | More]),
+                          end, [], Submissions),
     gen_udp:send(Socket, Packets),
-    {ok, State};
+    {noreply, State};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -221,8 +229,8 @@ handle_cast(_Msg, State) ->
 handle_info(_Info, State) ->
     {noreply, State}.
 
-terminate(_Reason, _State) ->
-    ok.
+terminate(_Reason, #state{socket = Socket}) ->
+    gen_udp:close(Socket).
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
@@ -262,9 +270,6 @@ name() ->
 sname() ->
     string:sub_word(atom_to_list(node()), 1, $@).
 
-drain_submissions(Cnt) ->
-    drain_submissions(Cnt, []).
-
 drain_submissions(0, Acc) ->
     lists:reverse(Acc);
 drain_submissions(Cnt, Acc) ->
@@ -272,5 +277,5 @@ drain_submissions(Cnt, Acc) ->
         {'$gen_cast', {submit, Submission}} ->
             drain_submissions(Cnt - 1, [Submission | Acc])
     after 0 ->
-        Acc
+        lists:reverse(Acc)
     end.
