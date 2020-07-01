@@ -38,7 +38,7 @@ t_encode(_) ->
     ?assertEqual(<<"example:10|c">>, iolist_to_binary(estatsd_protocol:encode(counter, example, 10, 1, []))),
     ?assertEqual(<<"example:-10|c">>, iolist_to_binary(estatsd_protocol:encode(counter, example, -10, 1, []))),
     ?assertEqual(<<"example:-10|c|@0.2">>, iolist_to_binary(estatsd_protocol:encode(counter, example, -10, 0.2, []))),
-    ?assertEqual(<<"example:-10|c|@0.2|#first:a,second:b">>, iolist_to_binary(estatsd_protocol:encode(counter, example, -10, 0.2, [{first, a}, {<<"second">>, "b"}]))),
+    ?assertEqual(<<"example:-10|c|@0.2|#first:a,second:b">>, iolist_to_binary(estatsd_protocol:encode(counter, example, -10, 0.2, [{"first", "a"}, {<<"second">>, "b"}]))),
     ?assertEqual(<<"example:10|g">>, iolist_to_binary(estatsd_protocol:encode(gauge, example, 10, 1, []))),
     ?assertEqual(<<"example:+10|g">>, iolist_to_binary(estatsd_protocol:encode(gauge_delta, example, 10, 1, []))),
     ?assertEqual(<<"example:-10|g">>, iolist_to_binary(estatsd_protocol:encode(gauge_delta, example, -10, 1, []))),
