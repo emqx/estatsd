@@ -15,17 +15,16 @@
 %%--------------------------------------------------------------------
 
 %% defaults
--define(DEFAULT_HOSTNAME, {127, 0, 0, 1}).
+-define(DEFAULT_HOST, {127, 0, 0, 1}).
 -define(DEFAULT_PORT, 8125).
 -define(DEFAULT_PREFIX, undefined).
 -define(DEFAULT_TAGS, []).
 -define(DEFAULT_BATCH_SIZE, 10).
 
 %% types
--type options() :: [].
--type prefix() :: prefix_part() | [prefix_part()].
--type prefix_part() :: hostname | name | sname | undefined | iodata().
--type key() :: iodata().
--type sample_rate() :: number().
+-type prefix() :: hostname | name | sname | undefined | list() | binary().
+-type name() :: atom() | string() | list() | binary().
 -type value() :: number().
--type tags() :: [{key(), any()}].
+-type sample_rate() :: number().
+-type tags() :: tag() | [tag()].
+-type tag() :: [{list() | binary(), list() | binary()}].

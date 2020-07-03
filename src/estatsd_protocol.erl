@@ -27,17 +27,17 @@
 %% APIs
 %%--------------------------------------------------------------------
 
--spec encode(Type, metric(), value(), sample_rate(), tags()) -> iolist()
+-spec encode(Type, name(), value(), sample_rate(), tags()) -> iolist()
     when Type :: counter | gauge | gauge_delta | timing | histogram | set.
-encode(Type, Metric, Value, SampleRate, Tags) ->
-    [encode_metric(Metric), <<":">>, encode_value(Type, Value), <<"|">>, encode_type(Type), encode_sample_rate(SampleRate), encode_tags(Tags)].
+encode(Type, Name, Value, SampleRate, Tags) ->
+    [encode_name(Name), <<":">>, encode_value(Type, Value), <<"|">>, encode_type(Type), encode_sample_rate(SampleRate), encode_tags(Tags)].
 
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
 
-encode_metric(Metric) ->
-    to_string(Metric).
+encode_name(Name) ->
+    to_string(Name).
 
 encode_value(Type, Value) when Type =:= gauge_delta andalso Value >= 0 ->
     [<<"+">>, encode_value(Value)];

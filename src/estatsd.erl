@@ -57,6 +57,7 @@
         , histogram/2
         , histogram/3
         , histogram/4
+        , submit/1
         ]).
 
 -export([ init/1
@@ -98,106 +99,124 @@ start_link(Opts) ->
 stop() ->
     gen_server:stop(?MODULE).
 
--spec counter(metric(), value()) -> ok.
-counter(Metric, Value) ->
-    counter(Metric, Value, 1, []).
+-spec counter(name(), value()) -> ok.
+counter(Name, Value) ->
+    counter(Name, Value, 1, []).
 
--spec counter(metric(), value(), sample_rate()) -> ok.
-counter(Metric, Value, Rate) ->
-    counter(Metric, Value, Rate, []).
+-spec counter(name(), value(), sample_rate()) -> ok.
+counter(Name, Value, Rate) ->
+    counter(Name, Value, Rate, []).
 
--spec counter(metric(), value(), sample_rate(), tags()) -> ok.
-counter(Metric, Value, Rate, Tags) when is_integer(Value) ->
-    submit(counter, Metric, Value, Rate, Tags).
+-spec counter(name(), value(), sample_rate(), tags()) -> ok.
+counter(Name, Value, Rate, Tags) when is_integer(Value) ->
+    submit({counter, Name, Value, Rate, Tags}).
 
--spec increment(metric(), value()) -> ok.
-increment(Metric, Value) ->
-    increment(Metric, Value, 1, []).
+-spec increment(name(), value()) -> ok.
+increment(Name, Value) ->
+    increment(Name, Value, 1, []).
 
--spec increment(metric(), value(), sample_rate()) -> ok.
-increment(Metric, Value, Rate) ->
-    increment(Metric, Value, Rate, []).
+-spec increment(name(), value(), sample_rate()) -> ok.
+increment(Name, Value, Rate) ->
+    increment(Name, Value, Rate, []).
 
--spec increment(metric(), value(), sample_rate(), tags()) -> ok.
-increment(Metric, Value, Rate, Tags) when is_integer(Value) ->
-    submit(counter, Metric, Value, Rate, Tags).
+-spec increment(name(), value(), sample_rate(), tags()) -> ok.
+increment(Name, Value, Rate, Tags) when is_integer(Value) ->
+    submit({counter, Name, Value, Rate, Tags}).
 
--spec decrement(metric(), value()) -> ok.
-decrement(Metric, Value) ->
-    decrement(Metric, Value, 1, []).
+-spec decrement(name(), value()) -> ok.
+decrement(Name, Value) ->
+    decrement(Name, Value, 1, []).
 
--spec decrement(metric(), value(), sample_rate()) -> ok.
-decrement(Metric, Value, Rate) ->
-    decrement(Metric, Value, Rate, []).
+-spec decrement(name(), value(), sample_rate()) -> ok.
+decrement(Name, Value, Rate) ->
+    decrement(Name, Value, Rate, []).
 
--spec decrement(metric(), value(), sample_rate(), tags()) -> ok.
-decrement(Metric, Value, Rate, Tags) when is_integer(Value) ->
-    submit(counter, Metric, -Value, Rate, Tags).
+-spec decrement(name(), value(), sample_rate(), tags()) -> ok.
+decrement(Name, Value, Rate, Tags) when is_integer(Value) ->
+    submit({counter, Name, -Value, Rate, Tags}).
 
--spec gauge(metric(), value()) -> ok.
-gauge(Metric, Value) ->
-    gauge(Metric, Value, 1, []).
+-spec gauge(name(), value()) -> ok.
+gauge(Name, Value) ->
+    gauge(Name, Value, 1, []).
 
--spec gauge(metric(), value(), sample_rate()) -> ok.
-gauge(Metric, Value, Rate) ->
-    gauge(Metric, Value, Rate, []).
+-spec gauge(name(), value(), sample_rate()) -> ok.
+gauge(Name, Value, Rate) ->
+    gauge(Name, Value, Rate, []).
 
--spec gauge(metric(), value(), sample_rate(), tags()) -> ok.
-gauge(Metric, Value, Rate, Tags) when is_number(Value) andalso Value >= 0 ->
-    submit(gauge, Metric, Value, Rate, Tags).
+-spec gauge(name(), value(), sample_rate(), tags()) -> ok.
+gauge(Name, Value, Rate, Tags) when is_number(Value) andalso Value >= 0 ->
+    submit({gauge, Name, Value, Rate, Tags}).
 
--spec gauge_delta(metric(), value()) -> ok.
-gauge_delta(Metric, Value) ->
-    gauge_delta(Metric, Value, 1, []).
+-spec gauge_delta(name(), value()) -> ok.
+gauge_delta(Name, Value) ->
+    gauge_delta(Name, Value, 1, []).
 
--spec gauge_delta(metric(), value(), sample_rate()) -> ok.
-gauge_delta(Metric, Value, Rate) ->
-    gauge_delta(Metric, Value, Rate, []).
+-spec gauge_delta(name(), value(), sample_rate()) -> ok.
+gauge_delta(Name, Value, Rate) ->
+    gauge_delta(Name, Value, Rate, []).
 
--spec gauge_delta(metric(), value(), sample_rate(), tags()) -> ok.
-gauge_delta(Metric, Value, Rate, Tags) when is_number(Value) ->
-    submit(gauge_delta, Metric, Value, Rate, Tags).
+-spec gauge_delta(name(), value(), sample_rate(), tags()) -> ok.
+gauge_delta(Name, Value, Rate, Tags) when is_number(Value) ->
+    submit({gauge_delta, Name, Value, Rate, Tags}).
 
--spec set(metric(), value()) -> ok.
-set(Metric, Value) ->
-    set(Metric, Value, 1, []).
+-spec set(name(), value()) -> ok.
+set(Name, Value) ->
+    set(Name, Value, 1, []).
 
--spec set(metric(), value(), sample_rate()) -> ok.
-set(Metric, Value, Rate) ->
-    set(Metric, Value, Rate, []).
+-spec set(name(), value(), sample_rate()) -> ok.
+set(Name, Value, Rate) ->
+    set(Name, Value, Rate, []).
 
--spec set(metric(), value(), sample_rate(), tags()) -> ok.
-set(Metric, Value, Rate, Tags) when is_number(Value) ->
-    submit(set, Metric, Value, Rate, Tags).
+-spec set(name(), value(), sample_rate(), tags()) -> ok.
+set(Name, Value, Rate, Tags) when is_number(Value) ->
+    submit({set, Name, Value, Rate, Tags}).
 
--spec timing(metric(), value() | function()) -> ok.
-timing(Metric, ValueOrFunc) ->
-    timing(Metric, ValueOrFunc, 1, []).
+-spec timing(name(), value() | function()) -> ok.
+timing(Name, ValueOrFunc) ->
+    timing(Name, ValueOrFunc, 1, []).
 
--spec timing(metric(), value() | function(), sample_rate()) -> ok.
-timing(Metric, ValueOrFunc, Rate) ->
-    timing(Metric, ValueOrFunc, Rate, []).
+-spec timing(name(), value() | function(), sample_rate()) -> ok.
+timing(Name, ValueOrFunc, Rate) ->
+    timing(Name, ValueOrFunc, Rate, []).
 
--spec timing(metric(), value() | function(), sample_rate(), tags()) -> ok.
-timing(Metric, Func, Rate, Tags) when is_function(Func) ->
+-spec timing(name(), value() | function(), sample_rate(), tags()) -> ok.
+timing(Name, Func, Rate, Tags) when is_function(Func) ->
     Start = erlang:system_time(millisecond),
     Func(),
-    timing(Metric, erlang:system_time(millisecond) - Start, Rate, Tags);
+    timing(Name, erlang:system_time(millisecond) - Start, Rate, Tags);
 
-timing(Metric, Value, Rate, Tags) when is_number(Value) ->
-    submit(timing, Metric, Value, Rate, Tags).
+timing(Name, Value, Rate, Tags) when is_number(Value) ->
+    submit({timing, Name, Value, Rate, Tags}).
 
--spec histogram(metric(), value()) -> ok.
-histogram(Metric, Value) ->
-    histogram(Metric, Value, 1, []).
+-spec histogram(name(), value()) -> ok.
+histogram(Name, Value) ->
+    histogram(Name, Value, 1, []).
 
--spec histogram(metric(), value(), sample_rate()) -> ok.
-histogram(Metric, Value, Rate) ->
-    histogram(Metric, Value, Rate, []).
+-spec histogram(name(), value(), sample_rate()) -> ok.
+histogram(Name, Value, Rate) ->
+    histogram(Name, Value, Rate, []).
 
--spec histogram(metric(), value(), sample_rate(), tags()) -> ok.
-histogram(Metric, Value, Rate, Tags) when is_number(Value) ->
-    submit(histogram, Metric, Value, Rate, Tags).
+-spec histogram(name(), value(), sample_rate(), tags()) -> ok.
+histogram(Name, Value, Rate, Tags) when is_number(Value) ->
+    submit({histogram, Name, Value, Rate, Tags}).
+
+
+-spec submit(Metrics) -> ok
+    when Metrics :: Metric | [Metric],
+         Metric :: {counter | gauge | gauge_delta | timing | histogram | set, name(), value(), sample_rate(), tags()}.
+submit(Metrics) when is_list(Metrics) ->
+    ShouldSubmit = lists:filter(fun({_, _, _, SampleRate, _}) ->
+                                    SampleRate >= 1 orelse rand:uniform(100) =< erlang:trunc(SampleRate * 100)
+                                end, Metrics),
+    gen_server:cast(?MODULE, {submit, ShouldSubmit});
+
+submit({Type, Name, Value, SampleRate, Tags}) ->
+    case SampleRate >= 1 orelse rand:uniform(100) =< erlang:trunc(SampleRate * 100) of
+        true ->
+            gen_server:cast(?MODULE, {submit, {Type, Name, Value, SampleRate, Tags}});
+        false ->
+            ok
+    end.
 
 %%--------------------------------------------------------------------
 %% gen_server callbacks
@@ -225,22 +244,25 @@ init([Opts]) ->
 handle_call(_Req, _From, State) ->
     {reply, ignored, State}.
 
-handle_cast({submit, Submission}, #state{socket     = Socket,
+handle_cast({submit, Metrics}, #state{socket     = Socket,
                                          host       = Host,
                                          port       = Port,
                                          prefix     = Prefix,
                                          tags       = ConstantTags,
                                          batch_size = BatchSize} = State) ->
-    Submissions = drain_submissions(BatchSize - 1, [Submission]),
-    Packets = lists:foldr(fun({Type, Metric, Value, SampleRate, Tags}, Acc) ->
-                              Packet = estatsd_protocol:encode(Type, Metric, Value, SampleRate, Tags ++ ConstantTags),
+    NMetrics = drain_metrics(BatchSize - 1, case Metrics of
+                                                Metrics when is_list(Metrics) -> Metrics;
+                                                _ -> [Metrics]
+                                            end),
+    Packets = lists:foldr(fun({Type, Name, Value, SampleRate, Tags}, Acc) ->
+                              Packet = estatsd_protocol:encode(Type, Name, Value, SampleRate, Tags ++ ConstantTags),
                               case Acc of
                                   [] ->
                                       [Prefix, Packet];
                                   _ ->
                                       [Prefix, Packet, "\n" | Acc]
                               end
-                          end, [], Submissions),
+                          end, [], NMetrics),
     gen_udp:send(Socket, Host, Port, Packets),
     {noreply, State};
 
@@ -260,16 +282,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions
 %%--------------------------------------------------------------------
 
-submit(Type, Metric, Value, SampleRate, Tags) when SampleRate =< 1 ->
-    case SampleRate =:= 1 orelse rand:uniform(100) =< erlang:trunc(SampleRate * 100) of
-        true ->
-            gen_server:cast(?MODULE, {submit, {Type, Metric, Value, SampleRate, Tags}});
-        false ->
-            ok
-    end;
-submit(_, _, _, SampleRate, _) ->
-    error({bad_sample_rate, SampleRate}).
-
 prefix(hostname) ->
     [hostname(), $.];
 prefix(name) ->
@@ -278,14 +290,14 @@ prefix(sname) ->
     [sname(), $.];
 prefix(undefined) ->
     "";
-prefix(Metric) when is_binary(Metric) ->
-    [Metric, $.];
+prefix(Name) when is_binary(Name) ->
+    [Name, $.];
 prefix([]) ->
     [];
-prefix([H | T] = Metric) ->
-    case io_lib:printable_unicode_list(Metric) of
+prefix([H | T] = Name) ->
+    case io_lib:printable_unicode_list(Name) of
         true ->
-            [Metric, $.];
+            [Name, $.];
         false ->
             [prefix(H) | prefix(T)]
     end.
@@ -300,12 +312,12 @@ name() ->
 sname() ->
     string:sub_word(atom_to_list(node()), 1, $@).
 
-drain_submissions(0, Acc) ->
+drain_metrics(0, Acc) ->
     lists:reverse(Acc);
-drain_submissions(Cnt, Acc) ->
+drain_metrics(Cnt, Acc) ->
     receive
         {'$gen_cast', {submit, Submission}} ->
-            drain_submissions(Cnt - 1, [Submission | Acc])
+            drain_metrics(Cnt - 1, [Submission | Acc])
     after 0 ->
         lists:reverse(Acc)
     end.
