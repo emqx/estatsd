@@ -30,34 +30,34 @@
 
 -export([ start_link/0
         , start_link/1
-        , stop/0
+        , stop/1
         ]).
 
--export([ counter/2
-        , counter/3
+-export([ counter/3
         , counter/4
-        , increment/2
+        , counter/5
         , increment/3
         , increment/4
-        , decrement/2
+        , increment/5
         , decrement/3
         , decrement/4
-        , gauge/2
+        , decrement/5
         , gauge/3
         , gauge/4
-        , gauge_delta/2
+        , gauge/5
         , gauge_delta/3
         , gauge_delta/4
-        , set/2
+        , gauge_delta/5
         , set/3
         , set/4
-        , timing/2
+        , set/5
         , timing/3
         , timing/4
-        , histogram/2
+        , timing/5
         , histogram/3
         , histogram/4
-        , submit/1
+        , histogram/5
+        , submit/2
         ]).
 
 -export([ init/1
@@ -91,129 +91,129 @@ start_link() ->
                    {port, inet:port_number()} |
                    {prefix, prefix()} |
                    {tags, tags()} |
-                   {batch_size, pos_integer()}.        
+                   {batch_size, pos_integer()}.
 start_link(Opts) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Opts], []).
+    gen_server:start_link(?MODULE, [Opts], []).
 
--spec(stop() -> ok).
-stop() ->
-    gen_server:stop(?MODULE).
+-spec(stop(pid()) -> ok).
+stop(Pid) ->
+    gen_server:stop(Pid).
 
--spec counter(name(), value()) -> ok.
-counter(Name, Value) ->
-    counter(Name, Value, 1, []).
+-spec counter(pid(), name(), value()) -> ok.
+counter(Pid, Name, Value) ->
+    counter(Pid, Name, Value, 1, []).
 
--spec counter(name(), value(), sample_rate()) -> ok.
-counter(Name, Value, Rate) ->
-    counter(Name, Value, Rate, []).
+-spec counter(pid() , name(), value(), sample_rate()) -> ok.
+counter(Pid, Name, Value, Rate) ->
+    counter(Pid, Name, Value, Rate, []).
 
--spec counter(name(), value(), sample_rate(), tags()) -> ok.
-counter(Name, Value, Rate, Tags) when is_integer(Value) ->
-    submit({counter, Name, Value, Rate, Tags}).
+-spec counter(pid(), name(), value(), sample_rate(), tags()) -> ok.
+counter(Pid, Name, Value, Rate, Tags) when is_integer(Value) ->
+    submit(Pid, {counter, Name, Value, Rate, Tags}).
 
--spec increment(name(), value()) -> ok.
-increment(Name, Value) ->
-    increment(Name, Value, 1, []).
+-spec increment(pid(), name(), value()) -> ok.
+increment(Pid, Name, Value) ->
+    increment(Pid, Name, Value, 1, []).
 
--spec increment(name(), value(), sample_rate()) -> ok.
-increment(Name, Value, Rate) ->
-    increment(Name, Value, Rate, []).
+-spec increment(pid(), name(), value(), sample_rate()) -> ok.
+increment(Pid, Name, Value, Rate) ->
+    increment(Pid, Name, Value, Rate, []).
 
--spec increment(name(), value(), sample_rate(), tags()) -> ok.
-increment(Name, Value, Rate, Tags) when is_integer(Value) ->
-    submit({counter, Name, Value, Rate, Tags}).
+-spec increment(pid(), name(), value(), sample_rate(), tags()) -> ok.
+increment(Pid, Name, Value, Rate, Tags) when is_integer(Value) ->
+    submit(Pid, {counter, Name, Value, Rate, Tags}).
 
--spec decrement(name(), value()) -> ok.
-decrement(Name, Value) ->
-    decrement(Name, Value, 1, []).
+-spec decrement(pid(), name(), value()) -> ok.
+decrement(Pid, Name, Value) ->
+    decrement(Pid, Name, Value, 1, []).
 
--spec decrement(name(), value(), sample_rate()) -> ok.
-decrement(Name, Value, Rate) ->
-    decrement(Name, Value, Rate, []).
+-spec decrement(pid(), name(), value(), sample_rate()) -> ok.
+decrement(Pid, Name, Value, Rate) ->
+    decrement(Pid, Name, Value, Rate, []).
 
--spec decrement(name(), value(), sample_rate(), tags()) -> ok.
-decrement(Name, Value, Rate, Tags) when is_integer(Value) ->
-    submit({counter, Name, -Value, Rate, Tags}).
+-spec decrement(pid(), name(), value(), sample_rate(), tags()) -> ok.
+decrement(Pid, Name, Value, Rate, Tags) when is_integer(Value) ->
+    submit(Pid, {counter, Name, -Value, Rate, Tags}).
 
--spec gauge(name(), value()) -> ok.
-gauge(Name, Value) ->
-    gauge(Name, Value, 1, []).
+-spec gauge(pid(), name(), value()) -> ok.
+gauge(Pid, Name, Value) ->
+    gauge(Pid, Name, Value, 1, []).
 
--spec gauge(name(), value(), sample_rate()) -> ok.
-gauge(Name, Value, Rate) ->
-    gauge(Name, Value, Rate, []).
+-spec gauge(pid(), name(), value(), sample_rate()) -> ok.
+gauge(Pid, Name, Value, Rate) ->
+    gauge(Pid, Name, Value, Rate, []).
 
--spec gauge(name(), value(), sample_rate(), tags()) -> ok.
-gauge(Name, Value, Rate, Tags) when is_number(Value) andalso Value >= 0 ->
-    submit({gauge, Name, Value, Rate, Tags}).
+-spec gauge(pid(), name(), value(), sample_rate(), tags()) -> ok.
+gauge(Pid, Name, Value, Rate, Tags) when is_number(Value) andalso Value >= 0 ->
+    submit(Pid, {gauge, Name, Value, Rate, Tags}).
 
--spec gauge_delta(name(), value()) -> ok.
-gauge_delta(Name, Value) ->
-    gauge_delta(Name, Value, 1, []).
+-spec gauge_delta(pid(), name(), value()) -> ok.
+gauge_delta(Pid, Name, Value) ->
+    gauge_delta(Pid, Name, Value, 1, []).
 
--spec gauge_delta(name(), value(), sample_rate()) -> ok.
-gauge_delta(Name, Value, Rate) ->
-    gauge_delta(Name, Value, Rate, []).
+-spec gauge_delta(pid(), name(), value(), sample_rate()) -> ok.
+gauge_delta(Pid, Name, Value, Rate) ->
+    gauge_delta(Pid, Name, Value, Rate, []).
 
--spec gauge_delta(name(), value(), sample_rate(), tags()) -> ok.
-gauge_delta(Name, Value, Rate, Tags) when is_number(Value) ->
-    submit({gauge_delta, Name, Value, Rate, Tags}).
+-spec gauge_delta(pid(), name(), value(), sample_rate(), tags()) -> ok.
+gauge_delta(Pid, Name, Value, Rate, Tags) when is_number(Value) ->
+    submit(Pid, {gauge_delta, Name, Value, Rate, Tags}).
 
--spec set(name(), value()) -> ok.
-set(Name, Value) ->
-    set(Name, Value, 1, []).
+-spec set(pid(), name(), value()) -> ok.
+set(Pid, Name, Value) ->
+    set(Pid, Name, Value, 1, []).
 
--spec set(name(), value(), sample_rate()) -> ok.
-set(Name, Value, Rate) ->
-    set(Name, Value, Rate, []).
+-spec set(pid(), name(), value(), sample_rate()) -> ok.
+set(Pid, Name, Value, Rate) ->
+    set(Pid, Name, Value, Rate, []).
 
--spec set(name(), value(), sample_rate(), tags()) -> ok.
-set(Name, Value, Rate, Tags) when is_number(Value) ->
-    submit({set, Name, Value, Rate, Tags}).
+-spec set(pid(), name(), value(), sample_rate(), tags()) -> ok.
+set(Pid, Name, Value, Rate, Tags) when is_number(Value) ->
+    submit(Pid, {set, Name, Value, Rate, Tags}).
 
--spec timing(name(), value() | function()) -> ok.
-timing(Name, ValueOrFunc) ->
-    timing(Name, ValueOrFunc, 1, []).
+-spec timing(pid(), name(), value() | function()) -> ok.
+timing(Pid, Name, ValueOrFunc) ->
+    timing(Pid, Name, ValueOrFunc, 1, []).
 
--spec timing(name(), value() | function(), sample_rate()) -> ok.
-timing(Name, ValueOrFunc, Rate) ->
-    timing(Name, ValueOrFunc, Rate, []).
+-spec timing(pid(), name(), value() | function(), sample_rate()) -> ok.
+timing(Pid, Name, ValueOrFunc, Rate) ->
+    timing(Pid, Name, ValueOrFunc, Rate, []).
 
--spec timing(name(), value() | function(), sample_rate(), tags()) -> ok.
-timing(Name, Func, Rate, Tags) when is_function(Func) ->
+-spec timing(pid(), name(), value() | function(), sample_rate(), tags()) -> ok.
+timing(Pid, Name, Func, Rate, Tags) when is_function(Func) ->
     Start = erlang:system_time(millisecond),
     Func(),
-    timing(Name, erlang:system_time(millisecond) - Start, Rate, Tags);
+    timing(Pid, Name, erlang:system_time(millisecond) - Start, Rate, Tags);
 
-timing(Name, Value, Rate, Tags) when is_number(Value) ->
-    submit({timing, Name, Value, Rate, Tags}).
+timing(Pid, Name, Value, Rate, Tags) when is_number(Value) ->
+    submit(Pid, {timing, Name, Value, Rate, Tags}).
 
--spec histogram(name(), value()) -> ok.
-histogram(Name, Value) ->
-    histogram(Name, Value, 1, []).
+-spec histogram(pid(), name(), value()) -> ok.
+histogram(Pid, Name, Value) ->
+    histogram(Pid, Name, Value, 1, []).
 
--spec histogram(name(), value(), sample_rate()) -> ok.
-histogram(Name, Value, Rate) ->
-    histogram(Name, Value, Rate, []).
+-spec histogram(pid(), name(), value(), sample_rate()) -> ok.
+histogram(Pid, Name, Value, Rate) ->
+    histogram(Pid, Name, Value, Rate, []).
 
--spec histogram(name(), value(), sample_rate(), tags()) -> ok.
-histogram(Name, Value, Rate, Tags) when is_number(Value) ->
-    submit({histogram, Name, Value, Rate, Tags}).
+-spec histogram(pid(), name(), value(), sample_rate(), tags()) -> ok.
+histogram(Pid, Name, Value, Rate, Tags) when is_number(Value) ->
+    submit(Pid, {histogram, Name, Value, Rate, Tags}).
 
 
--spec submit(Metrics) -> ok
+-spec submit(pid(), Metrics) -> ok
     when Metrics :: Metric | [Metric],
          Metric :: {counter | gauge | gauge_delta | timing | histogram | set, name(), value(), sample_rate(), tags()}.
-submit(Metrics) when is_list(Metrics) ->
+submit(Pid, Metrics) when is_list(Metrics) ->
     ShouldSubmit = lists:filter(fun({_, _, _, SampleRate, _}) ->
                                     SampleRate >= 1 orelse rand:uniform(100) =< erlang:trunc(SampleRate * 100)
                                 end, Metrics),
-    gen_server:cast(?MODULE, {submit, ShouldSubmit});
+    gen_server:cast(Pid, {submit, ShouldSubmit});
 
-submit({Type, Name, Value, SampleRate, Tags}) ->
+submit(Pid, {Type, Name, Value, SampleRate, Tags}) ->
     case SampleRate >= 1 orelse rand:uniform(100) =< erlang:trunc(SampleRate * 100) of
         true ->
-            gen_server:cast(?MODULE, {submit, {Type, Name, Value, SampleRate, Tags}});
+            gen_server:cast(Pid, {submit, {Type, Name, Value, SampleRate, Tags}});
         false ->
             ok
     end.
