@@ -33,42 +33,42 @@ end_per_suite(_Config) ->
 
 t_apis(_) ->
     {ok, Socket} = gen_udp:open(8125),
-    {ok, _} = estatsd:start_link(),
+    {ok, Pid} = estatsd:start_link(),
 
-    estatsd:counter(example, 1),
+    estatsd:counter(Pid, example, 1),
     should_receive(<<"example:1|c">>),
 
-    estatsd:increment(example, 1),
+    estatsd:increment(Pid, example, 1),
     should_receive(<<"example:1|c">>),
 
-    estatsd:increment(example, -1),
+    estatsd:increment(Pid, example, -1),
     should_receive(<<"example:-1|c">>),
 
-    estatsd:decrement(example, 1),
+    estatsd:decrement(Pid, example, 1),
     should_receive(<<"example:-1|c">>),
 
-    estatsd:decrement(example, -1),
+    estatsd:decrement(Pid, example, -1),
     should_receive(<<"example:1|c">>),
 
-    estatsd:gauge(example, 10),
+    estatsd:gauge(Pid, example, 10),
     should_receive(<<"example:10|g">>),
 
-    estatsd:gauge_delta(example, 1),
+    estatsd:gauge_delta(Pid, example, 1),
     should_receive(<<"example:+1|g">>),
 
-    estatsd:gauge_delta(example, -1),
+    estatsd:gauge_delta(Pid, example, -1),
     should_receive(<<"example:-1|g">>),
 
-    estatsd:set(example, 10),
+    estatsd:set(Pid, example, 10),
     should_receive(<<"example:10|s">>),
 
-    estatsd:timing(example, 10),
+    estatsd:timing(Pid, example, 10),
     should_receive(<<"example:10|ms">>),
 
     DelayFunc = fun() ->
                     ct:sleep(100)
                 end,
-    estatsd:timing(example, DelayFunc),
+    estatsd:timing(Pid, example, DelayFunc),
     receive
         {udp, _, _, _, Packet} ->
             Milliseconds = list_to_integer(lists:nth(2, re:split(Packet,"[:|]",[{return,list}]))),
@@ -77,40 +77,40 @@ t_apis(_) ->
         ct:fail(should_recv_packet)
     end,
 
-    estatsd:histogram(example, 10),
+    estatsd:histogram(Pid, example, 10),
     should_receive(<<"example:10|h">>),
 
     gen_udp:close(Socket),
-    ok = estatsd:stop().
+    ok = estatsd:stop(Pid).
     
 t_sample_rate(_) ->
     {ok, Socket} = gen_udp:open(8125),
-    {ok, _} = estatsd:start_link([{batch_size, 1}]),
+    {ok, Pid} = estatsd:start_link([{batch_size, 1}]),
 
-    [estatsd:counter(example, 1, 0.1) || _N <- lists:seq(1, 500)],
+    [estatsd:counter(Pid, example, 1, 0.1) || _N <- lists:seq(1, 500)],
     Rate = receive_count(0) / 500,
     ?assert(Rate > 0.06 andalso Rate < 0.14),
 
     gen_udp:close(Socket),
-    ok = estatsd:stop().
+    ok = estatsd:stop(Pid).
 
 t_opts(_) ->
     {ok, Socket} = gen_udp:open(8125),
 
-    {ok, _} = estatsd:start_link([{prefix, hostname}, {tags, [{"constant", "abc"}]}]),
-    estatsd:counter(example, 1, 1, [{"env", "dev"}]),
+    {ok, Pid} = estatsd:start_link([{prefix, hostname}, {tags, [{"constant", "abc"}]}]),
+    estatsd:counter(Pid, example, 1, 1, [{"env", "dev"}]),
     should_receive(iolist_to_binary([estatsd:hostname(), $., "example:1|c|#env:dev,constant:abc"])),
-    ok = estatsd:stop(),
+    ok = estatsd:stop(Pid),
 
-    {ok, _} = estatsd:start_link([{prefix, name}]),
-    estatsd:counter(example, 1),
+    {ok, Pid2} = estatsd:start_link([{prefix, name}]),
+    estatsd:counter(Pid2, example, 1),
     should_receive(iolist_to_binary([estatsd:name(), $., "example:1|c"])),
-    ok = estatsd:stop(),
+    ok = estatsd:stop(Pid2),
 
-    {ok, _} = estatsd:start_link([{prefix, sname}]),
-    estatsd:counter(example, 1),
+    {ok, Pid3} = estatsd:start_link([{prefix, sname}]),
+    estatsd:counter(Pid3, example, 1),
     should_receive(iolist_to_binary([estatsd:sname(), $., "example:1|c"])),
-    ok = estatsd:stop(),
+    ok = estatsd:stop(Pid3),
 
     gen_udp:close(Socket).
 
